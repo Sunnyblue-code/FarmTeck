@@ -1,0 +1,3695 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Harvest Calculator</title>
+    <!-- jsPDF library for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2e7d32;
+            --secondary: #66bb6a;
+            --accent: #81c784;
+            --light: #f1f8e9;
+            --dark: #1b5e20;
+            --white: #ffffff;
+            --gray: #757575;
+            --red: #f44336;
+            --orange: #ff9800;
+            --blue: #2196f3;
+            --shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--dark);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .subtitle {
+            color: var(--gray);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-title {
+            color: var(--primary);
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--primary);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .optional {
+            font-weight: normal;
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: var(--secondary);
+        }
+
+        button {
+            background: var(--primary);
+            color: var(--white);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:hover {
+            background: var(--dark);
+        }
+
+        .btn-danger {
+            background: var(--red);
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-blue {
+            background: var(--blue);
+        }
+
+        .btn-blue:hover {
+            background: #1976d2;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            font-size: 0.9rem;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .result {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+        }
+
+        .result-label {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .result-value {
+            color: var(--primary);
+            font-weight: bold;
+        }
+
+        .crop-list {
+            margin-top: 20px;
+        }
+
+        .crop-item {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .crop-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .crop-item.editing {
+            background: #e3f2fd;
+            border: 2px solid var(--blue);
+        }
+
+        .crop-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .crop-name {
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+            word-wrap: break-word;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .crop-dates {
+            color: var(--gray);
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .crop-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            margin-left: 15px;
+        }
+
+        .days-left {
+            background: var(--secondary);
+            color: var(--white);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            min-width: 80px;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .days-left.urgent {
+            background: var(--orange);
+        }
+
+        .days-left.overdue {
+            background: var(--red);
+        }
+
+        .crop-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .crop-todos-container {
+            margin-top: 15px;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 8px;
+            border-top: 2px solid var(--accent);
+        }
+
+        .crop-todos-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .crop-todos-header h4 {
+            color: var(--primary);
+            font-size: 1rem;
+            margin: 0;
+        }
+
+        .crop-todos-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .crop-todo-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: var(--white);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .crop-todo-item:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .crop-todo-item.completed {
+            opacity: 0.6;
+        }
+
+        .crop-todo-item.completed .crop-todo-content span {
+            text-decoration: line-through;
+        }
+
+        .crop-todo-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .crop-todo-content span {
+            font-size: 0.95rem;
+        }
+
+        .crop-todo-content small {
+            font-size: 0.85rem;
+        }
+
+        .crop-todo-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 16px;
+            padding: 0;
+            max-width: 540px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            overflow: hidden;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-50px) scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--primary) 0%, #1a7f37 100%);
+            color: white;
+            padding: 24px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0;
+            border: none;
+        }
+
+        .modal-header h3 {
+            color: white;
+            margin: 0;
+            font-size: 1.4rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-header h3 span:first-child {
+            font-size: 1.6rem;
+        }
+
+        .modal-close {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            font-size: 1.8rem;
+            color: white;
+            cursor: pointer;
+            padding: 0;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotate(90deg);
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .modal-form-group {
+            margin-bottom: 24px;
+            position: relative;
+        }
+
+        .modal-form-group label {
+            display: block;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .modal-form-group label span {
+            font-size: 1.1rem;
+        }
+
+        .modal-form-group input,
+        .modal-form-group textarea,
+        .modal-form-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+            box-sizing: border-box;
+        }
+
+        .modal-form-group input:focus,
+        .modal-form-group textarea:focus,
+        .modal-form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(34, 139, 34, 0.1);
+        }
+
+        .modal-form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+            font-family: inherit;
+        }
+
+        .modal-form-group small {
+            display: block;
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-top: 6px;
+            line-height: 1.4;
+        }
+
+        .input-hint {
+            background: #f0f6ff;
+            border-left: 3px solid var(--blue);
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #0969da;
+            margin-top: 6px;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e4e8;
+        }
+
+        .modal-buttons button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+        }
+
+        .modal-buttons .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+
+        .modal-buttons .btn-cancel:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+        }
+
+        .modal-buttons .btn-submit {
+            background: linear-gradient(135deg, var(--primary) 0%, #1a7f37 100%);
+            color: white;
+        }
+
+        .modal-buttons .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(34, 139, 34, 0.4);
+        }
+
+        /* History Modal Styles */
+        .history-item {
+            background: white;
+            border: 2px solid #e1e4e8;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .history-item:hover {
+            border-color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .history-date-badge {
+            background: var(--primary);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .history-item-details {
+            display: flex;
+            gap: 15px;
+            color: var(--gray);
+            font-size: 0.9rem;
+            margin-top: 8px;
+        }
+
+        .history-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray);
+        }
+
+        .history-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .todo-input-group {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 120px auto;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: end;
+        }
+
+        .todo-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .todo-item {
+            background: var(--light);
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            transition: all 0.3s ease;
+        }
+
+        .todo-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .todo-item.completed {
+            opacity: 0.6;
+            background: #e0e0e0;
+        }
+
+        .todo-item.completed .todo-text {
+            text-decoration: line-through;
+            color: var(--gray);
+        }
+
+        .todo-item.editing {
+            background: #e3f2fd;
+            border: 2px solid var(--blue);
+        }
+
+        .todo-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .todo-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .todo-text {
+            font-weight: 500;
+            margin-bottom: 4px;
+            word-wrap: break-word;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .todo-date {
+            color: var(--gray);
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .todo-actions {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 30px;
+            color: var(--gray);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            opacity: 0.5;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat {
+            background: var(--primary);
+            color: var(--white);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-icon {
+            font-size: 1.5rem;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--white);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: var(--shadow);
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            display: flex;
+        }
+
+        .notification.success {
+            border-left: 4px solid var(--secondary);
+        }
+
+        .notification.error {
+            border-left: 4px solid var(--red);
+        }
+
+        .notification.info {
+            border-left: 4px solid var(--blue);
+        }
+
+        /* Calendar Styles */
+        .calendar {
+            background: var(--white);
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .calendar-header h3 {
+            color: var(--primary);
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .calendar-weekday {
+            text-align: center;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 0.85rem;
+            padding: 8px;
+        }
+
+        .calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+        }
+
+        .calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+            background: var(--white);
+            min-height: 45px;
+        }
+
+        .calendar-day:hover {
+            background: var(--accent);
+            border-color: var(--primary);
+        }
+
+        .calendar-day.other-month {
+            color: #ccc;
+            background: #f5f5f5;
+        }
+
+        .calendar-day.today {
+            background: var(--primary);
+            color: var(--white);
+            font-weight: bold;
+        }
+
+        .calendar-day.has-task {
+            border: 2px solid var(--orange);
+            background: #fff3e0;
+        }
+
+        .calendar-day.has-task.today {
+            background: var(--orange);
+        }
+
+        /* Individual Todo Calendar */
+        .todo-calendar-toggle {
+            background: var(--light);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--primary);
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            width: 100%;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .todo-calendar-toggle:hover {
+            background: var(--accent);
+        }
+
+        .todo-calendar-container {
+            margin-top: 10px;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 8px;
+            display: none;
+        }
+
+        .todo-calendar-container.show {
+            display: block;
+        }
+
+        .mini-calendar {
+            display: grid;
+            gap: 20px;
+        }
+
+        .mini-calendar-month {
+            background: var(--white);
+            border-radius: 6px;
+            padding: 10px;
+        }
+
+        .mini-calendar-header {
+            text-align: center;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+        }
+
+        .mini-calendar-weekdays {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 3px;
+            margin-bottom: 5px;
+        }
+
+        .mini-calendar-weekday {
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--gray);
+            font-weight: 600;
+            padding: 3px;
+        }
+
+        .mini-calendar-days {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 3px;
+        }
+
+        .mini-calendar-day {
+            aspect-ratio: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            border-radius: 4px;
+            cursor: default;
+        }
+
+        .mini-calendar-day.other-month {
+            color: var(--gray);
+            opacity: 0.3;
+        }
+
+        .mini-calendar-day.today {
+            background: var(--blue);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .mini-calendar-day.recurring-task {
+            background: var(--orange);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .mini-calendar-day.base-date {
+            background: var(--primary);
+            color: var(--white);
+            font-weight: 600;
+        }
+
+        .recurring-info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: var(--dark);
+        }
+
+        .recurring-info strong {
+            color: var(--primary);
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 20px;
+                margin-bottom: 15px;
+            }
+
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            .crop-item {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 18px;
+                margin-bottom: 18px;
+            }
+
+            .crop-info {
+                margin-bottom: 15px;
+            }
+
+            .crop-name {
+                font-size: 1.2rem;
+                margin-bottom: 10px;
+            }
+
+            .crop-dates {
+                font-size: 0.95rem;
+                line-height: 1.5;
+            }
+
+            .crop-meta {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                margin-left: 0;
+                margin-top: 15px;
+                padding-top: 15px;
+                border-top: 1px solid rgba(0, 0, 0, 0.1);
+            }
+
+            .days-left {
+                font-size: 0.95rem;
+                padding: 8px 15px;
+                min-width: 90px;
+            }
+
+            .crop-actions {
+                justify-content: center;
+                gap: 10px;
+            }
+
+            .btn-small {
+                padding: 8px 15px;
+                font-size: 1rem;
+                min-width: 80px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .button-group button {
+                width: 100%;
+            }
+
+            .todo-input-group {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .todo-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+
+            .todo-content {
+                order: -1;
+            }
+
+            .todo-actions {
+                justify-content: center;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .stat {
+                padding: 12px;
+            }
+
+            .stat-number {
+                font-size: 1.3rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 5px;
+            }
+
+            .card {
+                padding: 15px;
+            }
+
+            .crop-item {
+                padding: 15px;
+            }
+
+            .crop-meta {
+                flex-direction: column;
+                gap: 12px;
+                align-items: stretch;
+            }
+
+            .days-left {
+                text-align: center;
+                width: 100%;
+            }
+
+            .crop-actions {
+                justify-content: stretch;
+            }
+
+            .crop-actions button {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <body>
+        <div class="container">
+            <header>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div style="flex: 1;"></div>
+                    <div style="flex: 1; text-align: center;">
+                        <h1 style="margin: 0;">
+                            <span>🌾</span>
+                            Simple Harvest Calculator
+                            <span>🌱</span>
+                        </h1>
+                    </div>
+                    <div id="authSection" style="flex: 1; text-align: right;">
+                        <div id="userInfo" style="display: none;">
+                            <span id="userEmail" style="color: var(--dark); font-weight: 500;"></span>
+                            <button onclick="logout()" class="btn-secondary"
+                                style="margin-left: 10px; padding: 5px 15px;">
+                                Logout
+                            </button>
+                        </div>
+                        <button id="loginBtn" onclick="showAuthModal()" class="btn-primary" style="padding: 5px 15px;">
+                            Login / Sign Up
+                        </button>
+                    </div>
+                </div>
+                <p class="subtitle">
+                    <span>📊</span>
+                    Track your harvest dates and tasks
+                    <span>📝</span>
+                </p>
+            </header>
+
+            <!-- Calculator Section -->
+            <div class="card">
+                <h2 class="card-title" id="formTitle">
+                    <span>🧮</span>
+                    Calculate Harvest Date
+                </h2>
+
+                <form id="calculatorForm">
+                    <div class="form-group">
+                        <label for="cropName">
+                            <span>🏷️</span>
+                            Crop Name
+                            <span class="optional">(optional)</span>
+                        </label>
+                        <input type="text" id="cropName" placeholder="e.g., Tomatoes">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nurseryDate">
+                            <span>🌱</span>
+                            Nursery Start Date
+                        </label>
+                        <input type="date" id="nurseryDate" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nurseryDays">
+                            <span>⏱️</span>
+                            Nursery Days
+                        </label>
+                        <input type="number" id="nurseryDays" min="1" max="365"
+                            placeholder="e.g., 21 days for tomato seedlings" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="daysToFirstHarvest">
+                            <span>🍅</span>
+                            Days to First Harvest (after transplant)
+                        </label>
+                        <input type="number" id="daysToFirstHarvest" min="1" max="365"
+                            placeholder="e.g., 60 days for first tomatoes" required>
+                    </div>
+
+                    <div class="button-group">
+                        <button type="submit" id="calculateBtn">
+                            <span>🧮</span>
+                            Calculate
+                        </button>
+                        <button type="button" id="cancelEditBtn" class="btn-danger" style="display: none;"
+                            onclick="cancelEdit()">
+                            <span>❌</span>
+                            Cancel Edit
+                        </button>
+                    </div>
+                </form>
+
+                <div id="result" class="result">
+                    <div class="result-item">
+                        <span class="result-label">
+                            <span>🌾</span>
+                            Crop:
+                        </span>
+                        <span class="result-value" id="resultCrop"></span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">
+                            <span>🌱</span>
+                            Nursery Start:
+                        </span>
+                        <span class="result-value" id="resultNurseryStart"></span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">
+                            <span>�</span>
+                            Transplant Date:
+                        </span>
+                        <span class="result-value" id="resultPlanting"></span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">
+                            <span>🍅</span>
+                            First Harvest:
+                        </span>
+                        <span class="result-value" id="resultFirstHarvest"></span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">
+                            <span>⏰</span>
+                            Days Until Harvest:
+                        </span>
+                        <span class="result-value" id="resultDays"></span>
+                    </div>
+                    <button onclick="saveCropFromCalculator()" id="saveCropBtn" style="margin-top: 10px;">
+                        <span>💾</span>
+                        Save Crop
+                    </button>
+                </div>
+            </div>
+
+            <!-- Todo Section -->
+            <div class="card">
+                <h2 class="card-title" id="todoFormTitle"
+                    style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="display: flex; align-items: center; gap: 8px;">
+                        <span>✅</span>
+                        Tasks
+                    </span>
+                    <button onclick="toggleTodoSort()" class="btn-blue btn-small"
+                        style="font-size: 0.9rem; padding: 8px 12px;" title="Toggle sort order">
+                        <span id="sortIcon">🔽</span>
+                        <span id="sortText">Latest First</span>
+                    </button>
+                </h2>
+
+                <div id="todoInputSection">
+                    <div class="todo-input-group">
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoInput">
+                                <span>📝</span>
+                                Task Description
+                            </label>
+                            <input type="text" id="todoInput" placeholder="Add a task...">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoDate">
+                                <span>📅</span>
+                                Due Date
+                            </label>
+                            <input type="date" id="todoDate">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoCrop">
+                                <span>🌾</span>
+                                Link to Crop
+                            </label>
+                            <select id="todoCrop"
+                                style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1rem;">
+                                <option value="">None</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoRecurringDates">
+                                <span>🔄</span>
+                                Repeat Every (days)
+                            </label>
+                            <input type="number" id="todoRecurringDates" min="1" max="365" placeholder="4"
+                                style="width: 100%;">
+                        </div>
+                        <button onclick="addTodo()" style="align-self: end;">
+                            <span>➕</span>
+                            Add
+                        </button>
+                    </div>
+                </div>
+
+                <div id="todoEditSection" style="display: none;">
+                    <div class="todo-input-group">
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoEditInput">
+                                <span>✏️</span>
+                                Task Description
+                            </label>
+                            <input type="text" id="todoEditInput">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoEditDate">
+                                <span>📅</span>
+                                Due Date
+                            </label>
+                            <input type="date" id="todoEditDate">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoEditCrop">
+                                <span>🌾</span>
+                                Link to Crop
+                            </label>
+                            <select id="todoEditCrop"
+                                style="width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 6px; font-size: 1rem;">
+                                <option value="">None</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="todoEditRecurringDates">
+                                <span>🔄</span>
+                                Repeat Every (days)
+                            </label>
+                            <input type="number" id="todoEditRecurringDates" min="1" max="365" placeholder="4"
+                                style="width: 100%;">
+                        </div>
+                        <div style="display: flex; gap: 5px; align-self: end;">
+                            <button onclick="updateTodo()" class="btn-blue">
+                                <span>✅</span>
+                                Update
+                            </button>
+                            <button onclick="cancelTodoEdit()" class="btn-danger">
+                                <span>❌</span>
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="todoList" class="todo-list"></div>
+            </div>
+
+            <!-- Saved Crops -->
+            <div class="card">
+                <h2 class="card-title">
+                    <span>🌾</span>
+                    Saved Crops
+                </h2>
+
+                <div id="cropList" class="crop-list"></div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-icon">🌾</div>
+                    <div class="stat-number" id="totalCrops">0</div>
+                    <div class="stat-label">Crops</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-number" id="totalTasks">0</div>
+                    <div class="stat-label">Tasks</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-icon">✅</div>
+                    <div class="stat-number" id="completedTasks">0</div>
+                    <div class="stat-label">Done</div>
+                </div>
+            </div>
+
+            <!-- Export Section -->
+            <div class="card" style="margin-top: 20px;">
+                <h2 class="card-title">
+                    <span>📄</span>
+                    Export to PDF
+                </h2>
+                <div class="button-group"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                    <button onclick="exportToPDF('crops')" class="btn-blue">
+                        <span>🌾</span>
+                        Export Crops Only
+                    </button>
+                    <button onclick="exportToPDF('tasks')" class="btn-blue">
+                        <span>📋</span>
+                        Export Tasks Only
+                    </button>
+                    <button onclick="exportToPDF('both')" class="btn-blue">
+                        <span>�</span>
+                        Export All Data
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification -->
+        <div id="notification" class="notification">
+            <span id="notificationText"></span>
+        </div>
+
+        <!-- Add Task Modal -->
+        <div id="addTaskModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><span>🌱</span>Add Task for <span id="modalCropName"></span></h3>
+                    <button class="modal-close" onclick="closeAddTaskModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <form id="addTaskForm" onsubmit="submitCropTask(event)">
+                        <div class="modal-form-group">
+                            <label for="modalTaskText">
+                                <span>📝</span>
+                                Task Description
+                            </label>
+                            <textarea id="modalTaskText"
+                                placeholder="Describe the task... (e.g., Spray pesticide, Apply fertilizer, Water plants)"
+                                required rows="3"></textarea>
+                        </div>
+
+                        <div class="modal-form-group">
+                            <label for="modalTaskDate">
+                                <span>📅</span>
+                                Due Date
+                            </label>
+                            <input type="date" id="modalTaskDate">
+                            <div class="input-hint">
+                                💡 Leave empty to automatically use today's date as the starting point for recurring
+                                tasks
+                            </div>
+                        </div>
+
+                        <div class="modal-form-group">
+                            <label for="modalTaskRecurring">
+                                <span>🔄</span>
+                                Repeat Interval (Optional)
+                            </label>
+                            <input type="number" id="modalTaskRecurring" min="1" max="365"
+                                placeholder="e.g., 4 for every 4 days">
+                            <small>Enter the number of days between task repetitions. For example, enter "4" to repeat
+                                every
+                                4 days, "7" for weekly.</small>
+                        </div>
+
+                        <div class="modal-buttons">
+                            <button type="button" onclick="closeAddTaskModal()" class="btn-cancel">
+                                <span>✖</span>
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn-submit">
+                                <span>✓</span>
+                                Add Task
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Harvest Modal -->
+        <div id="addHarvestModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><span>📦</span>Record Harvest for <span id="modalCropNameHarvest"></span></h3>
+                    <button class="modal-close" onclick="closeAddHarvestModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <form id="addHarvestForm" onsubmit="submitHarvestRecord(event)">
+                        <div class="modal-form-group">
+                            <label for="modalHarvestCrates">
+                                <span>📦</span>
+                                Number of Crates
+                            </label>
+                            <input type="number" id="modalHarvestCrates" min="1" max="10000"
+                                placeholder="Enter number of crates harvested" required autofocus>
+                        </div>
+
+                        <div class="modal-form-group">
+                            <label for="modalHarvestDate">
+                                <span>📅</span>
+                                Harvest Date
+                            </label>
+                            <input type="date" id="modalHarvestDate" required>
+                            <div class="input-hint">
+                                💡 Select the date when this harvest was collected
+                            </div>
+                        </div>
+
+                        <div class="modal-form-group">
+                            <label for="modalHarvestNotes">
+                                <span>📝</span>
+                                Notes (Optional)
+                            </label>
+                            <textarea id="modalHarvestNotes"
+                                placeholder="Add any notes about this harvest... (e.g., Good quality, Some pest damage, Early harvest)"
+                                rows="3"></textarea>
+                            <small>You can add details about quality, condition, or any observations.</small>
+                        </div>
+
+                        <div class="modal-buttons">
+                            <button type="button" onclick="closeAddHarvestModal()" class="btn-cancel">
+                                <span>✖</span>
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn-submit">
+                                <span>✓</span>
+                                Save Harvest
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task History Modal -->
+        <div id="taskHistoryModal" class="modal">
+            <div class="modal-content" style="max-width: 600px;">
+                <div class="modal-header">
+                    <h3><span>📜</span>Task History: <span id="historyTaskName"></span></h3>
+                    <button class="modal-close" onclick="closeTaskHistoryModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="history-list" id="historyList"></div>
+                    <div class="modal-buttons" style="margin-top: 20px;">
+                        <button type="button" onclick="closeTaskHistoryModal()" class="btn-cancel">
+                            <span>✖</span>
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmModal" class="modal">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h3><span id="confirmIcon">⚠️</span><span id="confirmTitle">Confirm Action</span></h3>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmMessage"
+                        style="font-size: 1rem; line-height: 1.6; color: var(--dark); margin-bottom: 20px;"></p>
+                    <div class="modal-buttons">
+                        <button type="button" onclick="closeConfirmModal(false)" class="btn-cancel">
+                            <span>✖</span>
+                            Cancel
+                        </button>
+                        <button type="button" onclick="closeConfirmModal(true)" class="btn-submit" id="confirmButton">
+                            <span>✓</span>
+                            <span id="confirmButtonText">Confirm</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authentication Modal -->
+        <div id="authModal" class="modal">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h3><span>🔐</span><span id="authModalTitle">Login / Sign Up</span></h3>
+                    <button class="modal-close" onclick="closeAuthModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div id="authError"
+                        style="display: none; padding: 10px; background: #ffebee; color: #c62828; border-radius: 4px; margin-bottom: 15px; font-size: 0.9rem;">
+                    </div>
+
+                    <form id="authForm" onsubmit="handleAuth(event)">
+                        <div class="form-group">
+                            <label for="authEmail">
+                                <span>📧</span>
+                                Email
+                            </label>
+                            <input type="email" id="authEmail" required placeholder="your@email.com">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="authPassword">
+                                <span>🔒</span>
+                                Password
+                            </label>
+                            <input type="password" id="authPassword" required placeholder="Enter password"
+                                minlength="6">
+                            <small style="color: var(--gray); font-size: 0.85rem;">Minimum 6 characters</small>
+                        </div>
+
+                        <div class="modal-buttons">
+                            <button type="button" onclick="closeAuthModal()" class="btn-cancel">
+                                <span>✖</span>
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn-submit" id="authSubmitBtn">
+                                <span>✓</span>
+                                <span id="authSubmitText">Login</span>
+                            </button>
+                        </div>
+                    </form>
+
+                    <div style="text-align: center; margin: 15px 0; color: var(--gray);">OR</div>
+
+                    <button onclick="handleGoogleSignIn()" class="btn-primary"
+                        style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                        <span style="font-size: 1.2rem;">🔷</span>
+                        Sign in with Google
+                    </button>
+
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button type="button" onclick="toggleAuthMode()" class="btn-link"
+                            style="background: none; border: none; color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 0.9rem;">
+                            <span id="authToggleText">Don't have an account? Sign up</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // ===== FIREBASE CONFIGURATION =====
+            // Firebase project: farmteck-6bf5f
+            const firebaseConfig = {
+                apiKey: "AIzaSyBocDWcfES4ljGQXEi6omtbm-99kyX4Jz0",
+                authDomain: "farmteck-6bf5f.firebaseapp.com",
+                projectId: "farmteck-6bf5f",
+                storageBucket: "farmteck-6bf5f.firebasestorage.app",
+                messagingSenderId: "886390036873",
+                appId: "1:886390036873:web:c9cd46000b64c11389e958",
+                measurementId: "G-05FSJ5J8L0"
+            };
+
+            // Initialize Firebase
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const db = firebase.firestore();
+
+            // Current user
+            let currentUser = null;
+
+            // ===== CONFIGURATION - Edit these values as needed =====
+            const DEFAULT_NURSERY_DAYS = 21;        // Default nursery period in days
+            const DEFAULT_DAYS_TO_HARVEST = 60;     // Default days to first harvest after transplant
+            // ======================================================
+
+            // Data
+            let crops = [];
+            let todos = [];
+            let currentCalculation = null;
+            let editingCropId = null;
+            let editingTodoId = null;
+            let currentModalCropId = null; // Track which crop the modal is for
+            let currentHarvestCropId = null; // Track which crop the harvest modal is for
+            let todoSortOrder = 'desc'; // 'desc' = newest first, 'asc' = oldest first
+
+            // Confirmation Modal
+            let confirmResolve = null;
+
+            function showConfirm(message, title = 'Confirm Action', icon = '⚠️', buttonText = 'Confirm') {
+                return new Promise((resolve) => {
+                    confirmResolve = resolve;
+                    document.getElementById('confirmIcon').textContent = icon;
+                    document.getElementById('confirmTitle').textContent = title;
+                    document.getElementById('confirmMessage').textContent = message;
+                    document.getElementById('confirmButtonText').textContent = buttonText;
+                    document.getElementById('confirmModal').classList.add('show');
+                });
+            }
+
+            function closeConfirmModal(result) {
+                document.getElementById('confirmModal').classList.remove('show');
+                if (confirmResolve) {
+                    confirmResolve(result);
+                    confirmResolve = null;
+                }
+            }
+
+            // ===== AUTHENTICATION FUNCTIONS =====
+            let isSignUpMode = false;
+
+            // Auth state observer
+            auth.onAuthStateChanged((user) => {
+                currentUser = user;
+                if (user) {
+                    // User is signed in
+                    document.getElementById('userEmail').textContent = user.email;
+                    document.getElementById('userInfo').style.display = 'block';
+                    document.getElementById('loginBtn').style.display = 'none';
+
+                    // Load user data from Firestore
+                    loadUserData();
+                } else {
+                    // User is signed out
+                    document.getElementById('userInfo').style.display = 'none';
+                    document.getElementById('loginBtn').style.display = 'inline-block';
+
+                    // Clear data
+                    crops = [];
+                    todos = [];
+                    renderCrops();
+                    renderTodos();
+                    updateStats();
+                }
+            });
+
+            function showAuthModal() {
+                isSignUpMode = false;
+                updateAuthModalUI();
+                document.getElementById('authModal').classList.add('show');
+                document.getElementById('authEmail').focus();
+            }
+
+            function closeAuthModal() {
+                document.getElementById('authModal').classList.remove('show');
+                document.getElementById('authForm').reset();
+                document.getElementById('authError').style.display = 'none';
+            }
+
+            function toggleAuthMode() {
+                isSignUpMode = !isSignUpMode;
+                updateAuthModalUI();
+            }
+
+            function updateAuthModalUI() {
+                if (isSignUpMode) {
+                    document.getElementById('authModalTitle').textContent = 'Sign Up';
+                    document.getElementById('authSubmitText').textContent = 'Sign Up';
+                    document.getElementById('authToggleText').textContent = 'Already have an account? Login';
+                } else {
+                    document.getElementById('authModalTitle').textContent = 'Login';
+                    document.getElementById('authSubmitText').textContent = 'Login';
+                    document.getElementById('authToggleText').textContent = "Don't have an account? Sign up";
+                }
+            }
+
+            function showAuthError(message) {
+                const errorDiv = document.getElementById('authError');
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
+            }
+
+            async function handleAuth(event) {
+                event.preventDefault();
+
+                const email = document.getElementById('authEmail').value;
+                const password = document.getElementById('authPassword').value;
+                const submitBtn = document.getElementById('authSubmitBtn');
+
+                submitBtn.disabled = true;
+                document.getElementById('authError').style.display = 'none';
+
+                try {
+                    if (isSignUpMode) {
+                        // Sign up
+                        await auth.createUserWithEmailAndPassword(email, password);
+                        showNotification('Account created successfully!', 'success');
+                    } else {
+                        // Login
+                        await auth.signInWithEmailAndPassword(email, password);
+                        showNotification('Logged in successfully!', 'success');
+                    }
+                    closeAuthModal();
+                } catch (error) {
+                    console.error('Auth error:', error);
+                    let errorMessage = 'An error occurred. Please try again.';
+
+                    switch (error.code) {
+                        case 'auth/email-already-in-use':
+                            errorMessage = 'Email already in use. Please login instead.';
+                            break;
+                        case 'auth/invalid-email':
+                            errorMessage = 'Invalid email address.';
+                            break;
+                        case 'auth/weak-password':
+                            errorMessage = 'Password should be at least 6 characters.';
+                            break;
+                        case 'auth/user-not-found':
+                            errorMessage = 'No account found with this email.';
+                            break;
+                        case 'auth/wrong-password':
+                            errorMessage = 'Incorrect password.';
+                            break;
+                    }
+
+                    showAuthError(errorMessage);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            }
+
+            async function handleGoogleSignIn() {
+                const provider = new firebase.auth.GoogleAuthProvider();
+
+                try {
+                    await auth.signInWithPopup(provider);
+                    showNotification('Logged in with Google!', 'success');
+                    closeAuthModal();
+                } catch (error) {
+                    console.error('Google sign in error:', error);
+                    showAuthError('Failed to sign in with Google. Please try again.');
+                }
+            }
+
+            async function logout() {
+                const confirmed = await showConfirm(
+                    'Are you sure you want to logout?',
+                    'Logout',
+                    '🚪',
+                    'Logout'
+                );
+                if (!confirmed) return;
+
+                try {
+                    await auth.signOut();
+                    showNotification('Logged out successfully', 'success');
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    showNotification('Error logging out', 'error');
+                }
+            }
+
+            // ===== FIRESTORE DATA FUNCTIONS =====
+            async function loadUserData() {
+                if (!currentUser) return;
+
+                try {
+                    // Load crops
+                    const cropsSnapshot = await db.collection('users').doc(currentUser.uid).collection('crops').get();
+                    crops = cropsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                    // Load todos
+                    const todosSnapshot = await db.collection('users').doc(currentUser.uid).collection('todos').get();
+                    todos = todosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                    renderCrops();
+                    renderTodos();
+                    updateStats();
+                } catch (error) {
+                    console.error('Error loading data:', error);
+                    showNotification('Error loading your data', 'error');
+                }
+            }
+
+            async function saveCrop(crop) {
+                if (!currentUser) {
+                    showNotification('Please login to save data', 'error');
+                    return;
+                }
+
+                try {
+                    await db.collection('users').doc(currentUser.uid).collection('crops').doc(String(crop.id)).set(crop);
+                } catch (error) {
+                    console.error('Error saving crop:', error);
+                    showNotification('Error saving crop', 'error');
+                }
+            }
+
+            async function deleteCrop(cropId) {
+                if (!currentUser) return;
+
+                try {
+                    await db.collection('users').doc(currentUser.uid).collection('crops').doc(String(cropId)).delete();
+                } catch (error) {
+                    console.error('Error deleting crop:', error);
+                }
+            }
+
+            async function saveTodo(todo) {
+                if (!currentUser) {
+                    showNotification('Please login to save data', 'error');
+                    return;
+                }
+
+                try {
+                    await db.collection('users').doc(currentUser.uid).collection('todos').doc(String(todo.id)).set(todo);
+                } catch (error) {
+                    console.error('Error saving todo:', error);
+                    showNotification('Error saving task', 'error');
+                }
+            }
+
+            async function deleteTodo(todoId) {
+                if (!currentUser) return;
+
+                try {
+                    await db.collection('users').doc(currentUser.uid).collection('todos').doc(String(todoId)).delete();
+                } catch (error) {
+                    console.error('Error deleting todo:', error);
+                }
+            }
+
+            // Initialize
+            document.addEventListener('DOMContentLoaded', function () {
+                document.getElementById('nurseryDate').valueAsDate = new Date();
+                document.getElementById('nurseryDays').value = DEFAULT_NURSERY_DAYS;
+                document.getElementById('daysToFirstHarvest').value = DEFAULT_DAYS_TO_HARVEST;
+                populateCropDropdowns();
+                renderCrops();
+                renderTodos();
+                updateStats();
+            });
+
+            // Form submission
+            document.getElementById('calculatorForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+                if (editingCropId) {
+                    updateCrop();
+                } else {
+                    calculate();
+                }
+            });
+
+            function calculate() {
+                const name = document.getElementById('cropName').value.trim();
+                const nurseryDate = document.getElementById('nurseryDate').value;
+                const nurseryDays = parseInt(document.getElementById('nurseryDays').value);
+                const daysToFirstHarvest = parseInt(document.getElementById('daysToFirstHarvest').value);
+
+                if (!nurseryDate || !nurseryDays || !daysToFirstHarvest) {
+                    showNotification('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                // Calculate planting date (transplant date) from nursery start + nursery days
+                const nurseryStart = new Date(nurseryDate);
+                const planting = new Date(nurseryStart);
+                planting.setDate(planting.getDate() + nurseryDays);
+
+                // Calculate harvest date from planting + days to first harvest
+                const harvest = new Date(planting);
+                harvest.setDate(harvest.getDate() + daysToFirstHarvest);
+
+                const today = new Date();
+                const daysUntil = Math.ceil((harvest - today) / (1000 * 60 * 60 * 24));
+
+                currentCalculation = {
+                    name: name || 'Unnamed Crop',
+                    nurseryStart: nurseryDate,
+                    planting: planting.toISOString().split('T')[0],
+                    harvest: harvest.toISOString().split('T')[0],
+                    daysUntil: daysUntil,
+                    nurseryDays: nurseryDays,
+                    daysToFirstHarvest: daysToFirstHarvest
+                };
+
+                showResult();
+            }
+
+            function showResult() {
+                const result = document.getElementById('result');
+                result.classList.add('show');
+
+                document.getElementById('resultCrop').textContent = currentCalculation.name;
+                document.getElementById('resultNurseryStart').textContent = formatDate(currentCalculation.nurseryStart);
+                document.getElementById('resultPlanting').textContent = formatDate(currentCalculation.planting);
+                document.getElementById('resultFirstHarvest').textContent = formatDate(currentCalculation.harvest);
+
+                const daysElement = document.getElementById('resultDays');
+                if (currentCalculation.daysUntil < 0) {
+                    daysElement.textContent = 'Overdue by ' + Math.abs(currentCalculation.daysUntil) + ' days';
+                    daysElement.style.color = 'var(--red)';
+                } else if (currentCalculation.daysUntil <= 7) {
+                    daysElement.textContent = currentCalculation.daysUntil + ' days';
+                    daysElement.style.color = 'var(--orange)';
+                } else {
+                    daysElement.textContent = currentCalculation.daysUntil + ' days';
+                    daysElement.style.color = 'var(--primary)';
+                }
+            }
+
+            async function saveCropFromCalculator() {
+                if (!currentCalculation) {
+                    showNotification('Calculate first', 'error');
+                    return;
+                }
+
+                if (!currentUser) {
+                    showNotification('Please login to save crops', 'error');
+                    showAuthModal();
+                    return;
+                }
+
+                const crop = {
+                    id: Date.now(),
+                    ...currentCalculation,
+                    harvestRecords: [] // Array to store harvest records {date, crates, notes}
+                };
+
+                crops.push(crop);
+                await saveCrop(crop);
+
+                renderCrops();
+                updateStats();
+                showNotification('Crop saved!', 'success');
+
+                // Reset form
+                resetForm();
+            }
+
+            function populateCropDropdowns() {
+                const todoCropSelect = document.getElementById('todoCrop');
+                const todoEditCropSelect = document.getElementById('todoEditCrop');
+
+                const options = '<option value="">None</option>' + crops.map(crop =>
+                    `<option value="${crop.id}">${crop.name}</option>`
+                ).join('');
+
+                if (todoCropSelect) todoCropSelect.innerHTML = options;
+                if (todoEditCropSelect) todoEditCropSelect.innerHTML = options;
+            }
+
+            function editCrop(id) {
+                const crop = crops.find(c => c.id === id);
+                if (!crop) return;
+
+                editingCropId = id;
+
+                // Populate form with crop data
+                document.getElementById('cropName').value = crop.name === 'Unnamed Crop' ? '' : crop.name;
+                document.getElementById('nurseryDate').value = crop.nurseryStart;
+                document.getElementById('nurseryDays').value = crop.nurseryDays || '';
+                document.getElementById('daysToFirstHarvest').value = crop.daysToFirstHarvest || '';
+
+                // Update UI for edit mode
+                document.getElementById('formTitle').innerHTML = '<span>✏️</span> Edit Crop';
+                document.getElementById('calculateBtn').innerHTML = '<span>✅</span> Update Crop';
+                document.getElementById('saveCropBtn').style.display = 'none';
+                document.getElementById('cancelEditBtn').style.display = 'inline-block';
+                document.getElementById('result').classList.remove('show');
+
+                // Highlight the crop being edited
+                renderCrops();
+
+                // Scroll to form
+                document.querySelector('.card').scrollIntoView({ behavior: 'smooth' });
+
+                showNotification('Editing crop. Make changes and click Update Crop.', 'info');
+            }
+
+            async function updateCrop() {
+                const name = document.getElementById('cropName').value.trim();
+                const nurseryDate = document.getElementById('nurseryDate').value;
+                const nurseryDays = parseInt(document.getElementById('nurseryDays').value);
+                const daysToFirstHarvest = parseInt(document.getElementById('daysToFirstHarvest').value);
+
+                if (!nurseryDate || !nurseryDays || !daysToFirstHarvest) {
+                    showNotification('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                // Calculate planting date from nursery start + nursery days
+                const nurseryStart = new Date(nurseryDate);
+                const planting = new Date(nurseryStart);
+                planting.setDate(planting.getDate() + nurseryDays);
+
+                // Calculate harvest date
+                const harvest = new Date(planting);
+                harvest.setDate(harvest.getDate() + daysToFirstHarvest);
+
+                const today = new Date();
+                const daysUntil = Math.ceil((harvest - today) / (1000 * 60 * 60 * 24));
+
+                // Build updated crop object
+                const updatedCrop = {
+                    id: editingCropId,
+                    name: name || 'Unnamed Crop',
+                    nurseryStart: nurseryDate,
+                    planting: planting.toISOString().split('T')[0],
+                    harvest: harvest.toISOString().split('T')[0],
+                    daysUntil: daysUntil,
+                    nurseryDays: nurseryDays,
+                    daysToFirstHarvest: daysToFirstHarvest
+                };
+
+                // Find and update the crop
+                const cropIndex = crops.findIndex(c => c.id === editingCropId);
+                if (cropIndex !== -1) {
+                    // Preserve harvestRecords when updating
+                    updatedCrop.harvestRecords = crops[cropIndex].harvestRecords || [];
+                    crops[cropIndex] = updatedCrop;
+
+                    await saveCrop(updatedCrop);
+                    renderCrops();
+                    updateStats();
+                    showNotification('Crop updated successfully!', 'success');
+                }
+
+                resetForm();
+            }
+
+            function cancelEdit() {
+                resetForm();
+                showNotification('Edit cancelled', 'info');
+            }
+
+            function resetForm() {
+                // Reset form fields
+                document.getElementById('calculatorForm').reset();
+                document.getElementById('nurseryDate').valueAsDate = new Date();
+
+                // Reset UI
+                document.getElementById('formTitle').innerHTML = '<span>🧮</span> Calculate Harvest Date';
+                document.getElementById('calculateBtn').innerHTML = '<span>🧮</span> Calculate';
+                document.getElementById('saveCropBtn').style.display = 'inline-block';
+                document.getElementById('cancelEditBtn').style.display = 'none';
+                document.getElementById('result').classList.remove('show');
+
+                // Reset state
+                editingCropId = null;
+                currentCalculation = null;
+
+                renderCrops();
+            }
+
+            function renderCrops() {
+                const cropList = document.getElementById('cropList');
+
+                if (crops.length === 0) {
+                    cropList.innerHTML = `
+                    <div class="empty">
+                        <div class="empty-icon">🌾</div>
+                        <p>No crops saved yet</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                cropList.innerHTML = crops.map(crop => {
+                    const today = new Date();
+                    const harvest = new Date(crop.harvest);
+                    const daysUntil = Math.ceil((harvest - today) / (1000 * 60 * 60 * 24));
+
+                    let daysClass = '';
+                    let daysText = '';
+                    let daysIcon = '';
+
+                    if (daysUntil < 0) {
+                        daysClass = 'overdue';
+                        daysText = 'Overdue';
+                        daysIcon = '⚠️';
+                    } else if (daysUntil <= 7) {
+                        daysClass = 'urgent';
+                        daysText = daysUntil + ' days';
+                        daysIcon = '⏰';
+                    } else {
+                        daysText = daysUntil + ' days';
+                        daysIcon = '📅';
+                    }
+
+                    const isEditing = crop.id === editingCropId;
+
+                    // Get todos for this crop
+                    const cropTodos = todos.filter(t => t.cropId === crop.id);
+                    const completedCount = cropTodos.filter(t => t.completed).length;
+                    const totalCount = cropTodos.length;
+
+                    // Calculate total harvest
+                    const harvestRecords = crop.harvestRecords || [];
+                    const totalCrates = harvestRecords.reduce((sum, record) => sum + (record.crates || 0), 0);
+                    const harvestCount = harvestRecords.length;
+
+                    return `
+                    <div class="crop-item ${isEditing ? 'editing' : ''}">
+                        <div class="crop-info">
+                            <div class="crop-name">
+                                <span>🌾</span>
+                                ${crop.name}
+                            </div>
+                            <div class="crop-dates">
+                                <div>🌱 Nursery Start: ${formatDate(crop.nurseryStart)}</div>
+                                <div>🌿 Transplant: ${formatDate(crop.planting)}</div>
+                                <div>⏱️ Nursery Period: ${crop.nurseryDays} days</div>
+                                <div>⏱️ Growth Period: ${crop.daysToFirstHarvest} days</div>
+                                <div>🍅 First Harvest: ${formatDate(crop.harvest)}</div>
+                            </div>
+                        </div>
+                        <div class="crop-meta">
+                            <span class="days-left ${daysClass}">
+                                <span>${daysIcon}</span>
+                                ${daysText}
+                            </span>
+                            <div class="crop-actions">
+                                <button onclick="toggleCropTodos(${crop.id})" class="btn-blue btn-small">
+                                    <span>📋</span>
+                                    Tasks (${completedCount}/${totalCount})
+                                </button>
+                                <button onclick="toggleHarvestLog(${crop.id})" class="btn-blue btn-small" title="Record harvest">
+                                    <span>📦</span>
+                                    Harvest (${totalCrates} crates)
+                                </button>
+                                <button onclick="editCrop(${crop.id})" class="btn-blue btn-small">
+                                    <span>✏️</span>
+                                    Edit
+                                </button>
+                                <button onclick="removeCrop(${crop.id})" class="btn-danger btn-small">
+                                    <span>🗑️</span>
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Harvest Log Section -->
+                        <div id="harvestLog-${crop.id}" class="crop-todos-container" style="display: none;">
+                            <div class="crop-todos-header">
+                                <h4>📦 Harvest Log for ${crop.name}</h4>
+                                <button onclick="addHarvestRecord(${crop.id})" class="btn-blue btn-small">
+                                    <span>➕</span>
+                                    Add Harvest
+                                </button>
+                            </div>
+                            <div class="harvest-summary" style="background: var(--light); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2rem; font-weight: bold; color: var(--primary);">${totalCrates}</div>
+                                        <div style="color: var(--gray); font-size: 0.9rem;">Total Crates</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2rem; font-weight: bold; color: var(--blue);">${harvestCount}</div>
+                                        <div style="color: var(--gray); font-size: 0.9rem;">Harvest Sessions</div>
+                                    </div>
+                                    ${harvestCount > 0 ? `
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2rem; font-weight: bold; color: var(--orange);">${(totalCrates / harvestCount).toFixed(1)}</div>
+                                        <div style="color: var(--gray); font-size: 0.9rem;">Avg per Session</div>
+                                    </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div id="harvestList-${crop.id}" class="crop-todos-list">
+                                ${renderHarvestRecords(crop.id)}
+                            </div>
+                        </div>
+                        
+                        <!-- Crop Todos Section -->
+                        <div id="cropTodos-${crop.id}" class="crop-todos-container" style="display: none;">
+                            <div class="crop-todos-header">
+                                <h4>📋 Tasks for ${crop.name}</h4>
+                                <button onclick="addCropTodo(${crop.id})" class="btn-blue btn-small">
+                                    <span>➕</span>
+                                    Add Task
+                                </button>
+                            </div>
+                            <div id="cropTodosList-${crop.id}" class="crop-todos-list">
+                                ${renderCropTodos(crop.id)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+
+                // Update crop dropdowns in todo form
+                populateCropDropdowns();
+            }
+
+            function renderCropTodos(cropId) {
+                const cropTodos = todos.filter(t => t.cropId === cropId);
+
+                if (cropTodos.length === 0) {
+                    return `
+                    <div class="empty" style="padding: 10px;">
+                        <p style="font-size: 0.9rem; color: var(--gray);">No tasks yet</p>
+                    </div>
+                `;
+                }
+
+                return cropTodos.map(todo => {
+                    const taskIcon = todo.completed ? '✅' : '⭕';
+                    let dateDisplay = '';
+
+                    if (todo.date) {
+                        const todoDate = new Date(todo.date);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        todoDate.setHours(0, 0, 0, 0);
+                        const daysUntil = Math.ceil((todoDate - today) / (1000 * 60 * 60 * 24));
+
+                        if (daysUntil < 0) {
+                            dateDisplay = `<span style="color: var(--red);">⚠️ Overdue</span>`;
+                        } else if (daysUntil === 0) {
+                            dateDisplay = `<span style="color: var(--orange);">🔥 Today</span>`;
+                        } else if (daysUntil <= 7) {
+                            dateDisplay = `<span style="color: var(--orange);">⏰ ${daysUntil} days</span>`;
+                        } else {
+                            dateDisplay = `📅 ${formatDate(todo.date)}`;
+                        }
+                    } else {
+                        dateDisplay = '📋 No date';
+                    }
+
+                    let recurringDisplay = '';
+                    if (todo.recurringDates) {
+                        const interval = parseInt(todo.recurringDates);
+                        if (!isNaN(interval) && interval > 0) {
+                            recurringDisplay = ` | 🔄 Every ${interval} day${interval !== 1 ? 's' : ''}`;
+                        }
+                    }
+
+                    return `
+                    <div class="crop-todo-item ${todo.completed ? 'completed' : ''}">
+                        <input type="checkbox" 
+                               ${todo.completed ? 'checked' : ''} 
+                               onchange="toggleTodo(${todo.id})">
+                        <div class="crop-todo-content">
+                            <span>${taskIcon} ${todo.text}</span>
+                            <small style="color: var(--gray);">${dateDisplay}${recurringDisplay}</small>
+                        </div>
+                        <div class="crop-todo-actions">
+                            <button onclick="editTodo(${todo.id})" class="btn-blue btn-small" style="padding: 4px 8px; font-size: 0.8rem;">
+                                ✏️
+                            </button>
+                            <button onclick="removeTodo(${todo.id})" class="btn-danger btn-small" style="padding: 4px 8px; font-size: 0.8rem;">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+            }
+
+            function toggleCropTodos(cropId) {
+                const container = document.getElementById(`cropTodos-${cropId}`);
+                const harvestContainer = document.getElementById(`harvestLog-${cropId}`);
+
+                if (container.style.display === 'none') {
+                    container.style.display = 'block';
+                    if (harvestContainer) harvestContainer.style.display = 'none';
+                } else {
+                    container.style.display = 'none';
+                }
+            }
+
+            function toggleHarvestLog(cropId) {
+                const container = document.getElementById(`harvestLog-${cropId}`);
+                const todosContainer = document.getElementById(`cropTodos-${cropId}`);
+
+                if (container.style.display === 'none') {
+                    container.style.display = 'block';
+                    if (todosContainer) todosContainer.style.display = 'none';
+                } else {
+                    container.style.display = 'none';
+                }
+            }
+
+            function renderHarvestRecords(cropId) {
+                const crop = crops.find(c => c.id === cropId);
+                if (!crop || !crop.harvestRecords || crop.harvestRecords.length === 0) {
+                    return `
+                    <div class="empty" style="padding: 20px;">
+                        <div class="empty-icon">📦</div>
+                        <p>No harvest records yet. Click "Add Harvest" to record your first harvest!</p>
+                    </div>
+                `;
+                }
+
+                // Sort by date, newest first
+                const sortedRecords = [...crop.harvestRecords].sort((a, b) =>
+                    new Date(b.date) - new Date(a.date)
+                );
+
+                return sortedRecords.map(record => {
+                    const recordDate = new Date(record.date);
+                    const today = new Date();
+                    const daysAgo = Math.floor((today - recordDate) / (1000 * 60 * 60 * 24));
+
+                    let timeText = '';
+                    if (daysAgo === 0) timeText = 'Today';
+                    else if (daysAgo === 1) timeText = 'Yesterday';
+                    else if (daysAgo < 7) timeText = `${daysAgo} days ago`;
+                    else timeText = formatDate(record.date);
+
+                    return `
+                    <div class="crop-todo-item">
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                <span style="font-size: 1.5rem;">📦</span>
+                                <strong style="font-size: 1.1rem; color: var(--primary);">${record.crates} crates</strong>
+                            </div>
+                            <div style="color: var(--gray); font-size: 0.85rem; margin-left: 35px;">
+                                <div>📅 ${timeText}</div>
+                                ${record.notes ? `<div style="margin-top: 5px; color: var(--dark);">📝 ${record.notes}</div>` : ''}
+                            </div>
+                        </div>
+                        <div class="crop-todo-actions">
+                            <button onclick="removeHarvestRecord(${cropId}, ${record.id})" class="btn-danger btn-small" style="padding: 4px 8px; font-size: 0.8rem;" title="Delete record">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+            }
+
+            function addHarvestRecord(cropId) {
+                const crop = crops.find(c => c.id === cropId);
+                if (!crop) return;
+
+                // Store the crop ID and open modal
+                currentHarvestCropId = cropId;
+                document.getElementById('modalCropNameHarvest').textContent = crop.name;
+
+                // Set today's date as default
+                const today = new Date();
+                document.getElementById('modalHarvestDate').valueAsDate = today;
+
+                // Clear previous values
+                document.getElementById('modalHarvestCrates').value = '';
+                document.getElementById('modalHarvestNotes').value = '';
+
+                // Show modal
+                document.getElementById('addHarvestModal').classList.add('show');
+            }
+
+            function closeAddHarvestModal() {
+                document.getElementById('addHarvestModal').classList.remove('show');
+                currentHarvestCropId = null;
+                document.getElementById('addHarvestForm').reset();
+            }
+
+            async function submitHarvestRecord(event) {
+                event.preventDefault();
+
+                if (!currentHarvestCropId) return;
+
+                const crop = crops.find(c => c.id === currentHarvestCropId);
+                if (!crop) return;
+
+                const crates = parseInt(document.getElementById('modalHarvestCrates').value);
+                const date = document.getElementById('modalHarvestDate').value;
+                const notes = document.getElementById('modalHarvestNotes').value.trim();
+
+                if (isNaN(crates) || crates <= 0) {
+                    showNotification('Please enter a valid number of crates', 'error');
+                    return;
+                }
+
+                const record = {
+                    id: Date.now(),
+                    date: date,
+                    crates: crates,
+                    notes: notes
+                };
+
+                if (!crop.harvestRecords) {
+                    crop.harvestRecords = [];
+                }
+
+                crop.harvestRecords.push(record);
+                await saveCrop(crop);
+
+                renderCrops();
+                showNotification(`Added ${crates} crates to harvest log!`, 'success');
+
+                closeAddHarvestModal();
+            }
+
+            // Task History Functions
+            function viewTaskHistory(todoId) {
+                const todo = todos.find(t => t.id === todoId);
+                if (!todo) return;
+
+                document.getElementById('historyTaskName').textContent = todo.text;
+
+                const historyList = document.getElementById('historyList');
+
+                if (!todo.completionHistory || todo.completionHistory.length === 0) {
+                    historyList.innerHTML = `
+                        <div class="history-empty">
+                            <div style="font-size: 3rem; margin-bottom: 10px;">📋</div>
+                            <p>No completion history yet</p>
+                            <small>Complete this task to start tracking history</small>
+                        </div>
+                    `;
+                } else {
+                    // Sort by completion date, newest first
+                    const sortedHistory = [...todo.completionHistory].sort((a, b) =>
+                        new Date(b.completedDate) - new Date(a.completedDate)
+                    );
+
+                    historyList.innerHTML = sortedHistory.map(record => {
+                        const completedDate = new Date(record.completedDate);
+                        const today = new Date();
+                        const daysAgo = Math.floor((today - completedDate) / (1000 * 60 * 60 * 24));
+
+                        let timeText = '';
+                        if (daysAgo === 0) timeText = 'Today';
+                        else if (daysAgo === 1) timeText = 'Yesterday';
+                        else if (daysAgo < 7) timeText = `${daysAgo} days ago`;
+                        else if (daysAgo < 30) timeText = `${Math.floor(daysAgo / 7)} weeks ago`;
+                        else timeText = formatDate(record.completedDate);
+
+                        return `
+                            <div class="history-item">
+                                <div class="history-item-header">
+                                    <div class="history-date-badge">✅ Completed</div>
+                                    <button onclick="removeHistoryRecord(${todoId}, ${record.id})" 
+                                            class="btn-danger btn-small" 
+                                            style="padding: 4px 8px; font-size: 0.85rem;"
+                                            title="Remove this record">
+                                        🗑️
+                                    </button>
+                                </div>
+                                <div class="history-item-details">
+                                    <div>📅 <strong>${timeText}</strong></div>
+                                    ${record.scheduledDate ? `<div>🎯 Scheduled: ${formatDate(record.scheduledDate)}</div>` : ''}
+                                </div>
+                                ${record.notes ? `<div style="margin-top: 10px; padding: 8px; background: var(--light); border-radius: 4px; font-size: 0.9rem;">📝 ${record.notes}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                document.getElementById('taskHistoryModal').classList.add('show');
+            }
+
+            function closeTaskHistoryModal() {
+                document.getElementById('taskHistoryModal').classList.remove('show');
+            }
+
+            async function removeHistoryRecord(todoId, recordId) {
+                const confirmed = await showConfirm(
+                    'Revert this completion? The task will be restored to its scheduled date.',
+                    'Revert Completion',
+                    '↩️',
+                    'Revert'
+                );
+                if (!confirmed) return;
+
+                const todo = todos.find(t => t.id === todoId);
+                if (!todo || !todo.completionHistory) return;
+
+                // Find the record being removed
+                const recordToRemove = todo.completionHistory.find(r => r.id === recordId);
+                if (!recordToRemove) return;
+
+                // Remove the record
+                todo.completionHistory = todo.completionHistory.filter(r => r.id !== recordId);
+
+                // If this is a recurring task, we need to revert the date
+                if (todo.recurringDates && recordToRemove.scheduledDate) {
+                    const interval = parseInt(todo.recurringDates);
+                    if (!isNaN(interval) && interval > 0) {
+                        // Find the most recent completion after removing this one
+                        const sortedHistory = [...todo.completionHistory].sort((a, b) =>
+                            new Date(b.completedDate) - new Date(a.completedDate)
+                        );
+
+                        if (sortedHistory.length > 0) {
+                            // Set date to the next occurrence after the most recent completion
+                            const lastCompleted = new Date(sortedHistory[0].scheduledDate);
+                            lastCompleted.setDate(lastCompleted.getDate() + interval);
+                            todo.date = lastCompleted.toISOString().split('T')[0];
+                        } else {
+                            // No more history, restore to the original scheduled date
+                            todo.date = recordToRemove.scheduledDate;
+                        }
+
+                        // Mark as incomplete so it appears in active tasks
+                        todo.completed = false;
+                    }
+                } else {
+                    // For non-recurring tasks, just mark as incomplete
+                    todo.completed = false;
+                    // Restore the original scheduled date if available
+                    if (recordToRemove.scheduledDate) {
+                        todo.date = recordToRemove.scheduledDate;
+                    }
+                }
+
+                await saveTodo(todo);
+
+                // Refresh the history view and task list
+                viewTaskHistory(todoId);
+                renderTodos();
+                renderCrops(); // Update crop task counts
+
+                showNotification('Task reverted and repositioned in task list', 'success');
+            }
+
+            async function removeHarvestRecord(cropId, recordId) {
+                const crop = crops.find(c => c.id === cropId);
+                const record = crop && crop.harvestRecords ? crop.harvestRecords.find(r => r.id === recordId) : null;
+
+                let message = 'Delete this harvest record?';
+                if (record && record.crates) {
+                    message = `Delete harvest record (${record.crates} crates)?`;
+                }
+
+                const confirmed = await showConfirm(
+                    message,
+                    'Delete Harvest Record',
+                    '🗑️',
+                    'Delete'
+                );
+                if (!confirmed) return;
+
+                if (!crop || !crop.harvestRecords) return;
+
+                crop.harvestRecords = crop.harvestRecords.filter(r => r.id !== recordId);
+                await saveCrop(crop);
+
+                renderCrops();
+                showNotification('Harvest record removed', 'success');
+            }
+
+            function addCropTodo(cropId) {
+                const crop = crops.find(c => c.id === cropId);
+                if (!crop) return;
+
+                // Store the crop ID and open modal
+                currentModalCropId = cropId;
+                document.getElementById('modalCropName').textContent = crop.name;
+
+                // Set today's date as default
+                const today = new Date();
+                document.getElementById('modalTaskDate').valueAsDate = today;
+
+                // Clear previous values
+                document.getElementById('modalTaskText').value = '';
+                document.getElementById('modalTaskRecurring').value = '';
+
+                // Show modal
+                document.getElementById('addTaskModal').classList.add('show');
+            }
+
+            function closeAddTaskModal() {
+                document.getElementById('addTaskModal').classList.remove('show');
+                currentModalCropId = null;
+                document.getElementById('addTaskForm').reset();
+            }
+
+            async function submitCropTask(event) {
+                event.preventDefault();
+
+                if (!currentModalCropId) return;
+
+                if (!currentUser) {
+                    showNotification('Please login to add tasks', 'error');
+                    showAuthModal();
+                    return;
+                }
+
+                const text = document.getElementById('modalTaskText').value.trim();
+                const dateValue = document.getElementById('modalTaskDate').value;
+                const recurringValue = document.getElementById('modalTaskRecurring').value.trim();
+
+                // Clean and validate the recurring interval
+                let recurringFinal = null;
+                if (recurringValue) {
+                    const interval = parseInt(recurringValue);
+                    if (!isNaN(interval) && interval > 0) {
+                        recurringFinal = interval.toString();
+                    }
+                }
+
+                // If recurring is set but no date provided, use today as the base date
+                let finalDate = dateValue || null;
+                if (recurringFinal && !finalDate) {
+                    const today = new Date();
+                    finalDate = today.toISOString().split('T')[0];
+                }
+
+                const todo = {
+                    id: Date.now(),
+                    text: text,
+                    date: finalDate,
+                    recurringDates: recurringFinal,
+                    cropId: currentModalCropId,
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+
+                todos.push(todo);
+                await saveTodo(todo);
+
+                renderCrops();
+                renderTodos();
+                updateStats();
+
+                if (recurringFinal) {
+                    showNotification(`Task added! Repeats every ${recurringFinal} day${recurringFinal !== '1' ? 's' : ''}`, 'success');
+                } else {
+                    showNotification('Task added to crop!', 'success');
+                }
+
+                closeAddTaskModal();
+            }
+
+            async function removeCrop(id) {
+                const crop = crops.find(c => c.id === id);
+                const cropName = crop ? crop.name : 'this crop';
+                const tasksCount = todos.filter(t => t.cropId === id).length;
+
+                let message = `Delete "${cropName}"?`;
+                if (tasksCount > 0) {
+                    message += ` This will also remove ${tasksCount} associated task${tasksCount > 1 ? 's' : ''}.`;
+                }
+
+                const confirmed = await showConfirm(
+                    message,
+                    'Delete Crop',
+                    '🗑️',
+                    'Delete'
+                );
+                if (!confirmed) return;
+
+                if (editingCropId === id) {
+                    cancelEdit();
+                }
+
+                // Remove associated tasks
+                const associatedTasks = todos.filter(todo => todo.cropId === id);
+                for (const task of associatedTasks) {
+                    await deleteTodo(task.id);
+                }
+                todos = todos.filter(todo => todo.cropId !== id);
+
+                await deleteCrop(id);
+                crops = crops.filter(crop => crop.id !== id);
+
+                renderCrops();
+                renderTodos();
+                updateStats();
+                showNotification('Crop removed', 'success');
+            }
+
+            async function addTodo() {
+                if (!currentUser) {
+                    showNotification('Please login to add tasks', 'error');
+                    showAuthModal();
+                    return;
+                }
+
+                const input = document.getElementById('todoInput');
+                const dateInput = document.getElementById('todoDate');
+                const cropSelect = document.getElementById('todoCrop');
+                const recurringDatesInput = document.getElementById('todoRecurringDates');
+                const text = input.value.trim();
+
+                if (!text) {
+                    showNotification('Enter a task', 'error');
+                    return;
+                }
+
+                const cropId = cropSelect.value ? parseInt(cropSelect.value) : null;
+
+                const todo = {
+                    id: Date.now(),
+                    text: text,
+                    date: dateInput.value || null,
+                    cropId: cropId,
+                    recurringDates: recurringDatesInput.value.trim() || null,
+                    completed: false,
+                    createdAt: new Date().toISOString()
+                };
+
+                todos.push(todo);
+                await saveTodo(todo);
+
+                input.value = '';
+                dateInput.value = '';
+                cropSelect.value = '';
+                recurringDatesInput.value = '';
+                renderTodos();
+                renderCrops(); // Update crop task counts
+                updateStats();
+                showNotification('Task added', 'success');
+            }
+
+            function editTodo(id) {
+                const todo = todos.find(t => t.id === id);
+                if (!todo) return;
+
+                editingTodoId = id;
+
+                // Populate crop dropdowns
+                populateCropDropdowns();
+
+                // Populate edit form
+                document.getElementById('todoEditInput').value = todo.text;
+                document.getElementById('todoEditDate').value = todo.date || '';
+                document.getElementById('todoEditCrop').value = todo.cropId || '';
+                document.getElementById('todoEditRecurringDates').value = todo.recurringDates || '';
+
+                // Switch UI
+                document.getElementById('todoInputSection').style.display = 'none';
+                document.getElementById('todoEditSection').style.display = 'block';
+                document.getElementById('todoFormTitle').innerHTML = '<span>✏️</span> Edit Task';
+
+                renderTodos();
+
+                showNotification('Editing task. Make changes and click Update.', 'info');
+            }
+
+            async function updateTodo() {
+                const input = document.getElementById('todoEditInput');
+                const dateInput = document.getElementById('todoEditDate');
+                const cropSelect = document.getElementById('todoEditCrop');
+                const recurringDatesInput = document.getElementById('todoEditRecurringDates');
+                const text = input.value.trim();
+
+                if (!text) {
+                    showNotification('Task description is required', 'error');
+                    return;
+                }
+
+                const cropId = cropSelect.value ? parseInt(cropSelect.value) : null;
+
+                const todoIndex = todos.findIndex(t => t.id === editingTodoId);
+                if (todoIndex !== -1) {
+                    todos[todoIndex].text = text;
+                    todos[todoIndex].date = dateInput.value || null;
+                    todos[todoIndex].cropId = cropId;
+                    todos[todoIndex].recurringDates = recurringDatesInput.value.trim() || null;
+
+                    await saveTodo(todos[todoIndex]);
+                    renderTodos();
+                    renderCrops(); // Update crop task counts
+                    updateStats();
+                    showNotification('Task updated successfully!', 'success');
+                }
+
+                cancelTodoEdit();
+            }
+
+            function cancelTodoEdit() {
+                editingTodoId = null;
+
+                // Reset edit form
+                document.getElementById('todoEditInput').value = '';
+                document.getElementById('todoEditDate').value = '';
+                document.getElementById('todoEditRecurringDates').value = '';
+
+                // Switch UI back
+                document.getElementById('todoInputSection').style.display = 'block';
+                document.getElementById('todoEditSection').style.display = 'none';
+                document.getElementById('todoFormTitle').innerHTML = `
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    <span>✅</span>
+                    Tasks
+                </span>
+                <button onclick="toggleTodoSort()" class="btn-blue btn-small" style="font-size: 0.9rem; padding: 8px 12px;" title="Toggle sort order">
+                    <span id="sortIcon">${todoSortOrder === 'desc' ? '🔽' : '🔼'}</span>
+                    <span id="sortText">${todoSortOrder === 'desc' ? 'Latest First' : 'Soonest First'}</span>
+                </button>
+            `;
+
+                renderTodos();
+            }
+
+            function toggleTodoSort() {
+                // Toggle between 'desc' and 'asc'
+                todoSortOrder = todoSortOrder === 'desc' ? 'asc' : 'desc';
+
+                // Update the button text and icon
+                document.getElementById('sortIcon').textContent = todoSortOrder === 'desc' ? '🔽' : '🔼';
+                document.getElementById('sortText').textContent = todoSortOrder === 'desc' ? 'Latest First' : 'Soonest First';
+
+                // Re-render the todos with new sort order
+                renderTodos();
+
+                // Show notification
+                showNotification(`Tasks sorted: ${todoSortOrder === 'desc' ? 'Latest dates first' : 'Soonest dates first'}`, 'success');
+            }
+
+            // Helper function to get the next occurrence date for a task
+            function getNextOccurrenceDate(todo) {
+                if (!todo.date) return null;
+
+                const todoDate = new Date(todo.date);
+                todoDate.setHours(0, 0, 0, 0);
+
+                return todoDate;
+            }
+
+            function renderTodos() {
+                const todoList = document.getElementById('todoList');
+
+                if (todos.length === 0) {
+                    todoList.innerHTML = `
+                    <div class="empty">
+                        <div class="empty-icon">📝</div>
+                        <p>No tasks yet</p>
+                    </div>
+                `;
+                    return;
+                }
+
+                // Sort todos based on user preference
+                const sortedTodos = [...todos].sort((a, b) => {
+                    // First, separate by completion status (incomplete first)
+                    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+
+                    // Get dates for both tasks (creation date as fallback)
+                    const dateA = a.date ? new Date(a.date) : new Date(a.createdAt || a.id);
+                    const dateB = b.date ? new Date(b.date) : new Date(b.createdAt || b.id);
+
+                    // For incomplete tasks, prioritize tasks with dates
+                    if (!a.completed && !b.completed) {
+                        // If one has a date and the other doesn't
+                        if (a.date && !b.date) return -1; // Tasks with dates come first
+                        if (!a.date && b.date) return 1;
+
+                        // If neither has a date, sort by creation date
+                        if (!a.date && !b.date) {
+                            const createdA = new Date(a.createdAt || a.id);
+                            const createdB = new Date(b.createdAt || b.id);
+                            return todoSortOrder === 'desc' ? createdB - createdA : createdA - createdB;
+                        }
+
+                        // Both have dates - sort by due date with toggle
+                        if (todoSortOrder === 'desc') {
+                            return dateB - dateA; // Latest due date first
+                        } else {
+                            return dateA - dateB; // Earliest due date first (soonest)
+                        }
+                    }
+
+                    // For completed tasks, sort by creation date based on preference
+                    const createdA = new Date(a.createdAt || a.id);
+                    const createdB = new Date(b.createdAt || b.id);
+
+                    if (todoSortOrder === 'desc') {
+                        return createdB - createdA; // Newest first
+                    } else {
+                        return createdA - createdB; // Oldest first
+                    }
+                });
+
+                todoList.innerHTML = sortedTodos.map(todo => {
+                    const isEditing = todo.id === editingTodoId;
+                    let dateDisplay = '';
+                    let dateIcon = '📅';
+
+                    if (todo.date) {
+                        // Get the task date
+                        const displayDate = getNextOccurrenceDate(todo);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        if (displayDate) {
+                            displayDate.setHours(0, 0, 0, 0);
+                            const daysUntil = Math.ceil((displayDate - today) / (1000 * 60 * 60 * 24));
+
+                            if (daysUntil < 0) {
+                                dateDisplay = `<span style="color: var(--red);">Overdue by ${Math.abs(daysUntil)} days</span>`;
+                                dateIcon = '⚠️';
+                            } else if (daysUntil === 0) {
+                                dateDisplay = `<span style="color: var(--orange);">Due today</span>`;
+                                dateIcon = '🔥';
+                            } else if (daysUntil === 1) {
+                                dateDisplay = `<span style="color: var(--orange);">Due tomorrow</span>`;
+                                dateIcon = '⏰';
+                            } else if (daysUntil <= 7) {
+                                dateDisplay = `<span style="color: var(--orange);">Due in ${daysUntil} days</span>`;
+                                dateIcon = '⏰';
+                            } else {
+                                dateDisplay = `Due: ${formatDate(todo.date)}`;
+                            }
+                        }
+                    } else {
+                        dateDisplay = 'No due date';
+                        dateIcon = '📋';
+                    }
+
+                    const taskIcon = todo.completed ? '✅' : '⭕';
+
+                    // Crop info if this todo is linked to a crop
+                    let cropInfo = '';
+                    if (todo.cropId) {
+                        const crop = crops.find(c => c.id === todo.cropId);
+                        if (crop) {
+                            cropInfo = `
+                            <div class="todo-date">
+                                <span>🌾</span>
+                                For: ${crop.name}
+                            </div>
+                        `;
+                        }
+                    }
+
+                    // Recurring dates info
+                    let recurringInfo = '';
+                    if (todo.recurringDates) {
+                        const interval = parseInt(todo.recurringDates);
+                        if (!isNaN(interval) && interval > 0) {
+                            recurringInfo = `
+                            <div class="todo-date">
+                                <span>🔄</span>
+                                Repeats every ${interval} day${interval !== 1 ? 's' : ''}
+                            </div>
+                        `;
+                        }
+                    }
+
+                    // Calendar toggle button
+                    let calendarSection = '';
+                    if (todo.recurringDates || todo.date) {
+                        calendarSection = `
+                        <button class="todo-calendar-toggle" onclick="toggleTodoCalendar(${todo.id}); event.stopPropagation();">
+                            <span>📆</span>
+                            <span>Show Calendar</span>
+                        </button>
+                        <div id="todoCalendar-${todo.id}" class="todo-calendar-container">
+                            <div class="mini-calendar" id="miniCalendar-${todo.id}"></div>
+                        </div>
+                    `;
+                    }
+
+                    return `
+                    <div class="todo-item ${todo.completed ? 'completed' : ''} ${isEditing ? 'editing' : ''}">
+                        <input type="checkbox" 
+                               class="todo-checkbox" 
+                               ${todo.completed ? 'checked' : ''} 
+                               onchange="toggleTodo(${todo.id})">
+                        <div class="todo-content">
+                            <div class="todo-text">
+                                <span>${taskIcon}</span>
+                                ${todo.text}
+                            </div>
+                            <div class="todo-date">
+                                <span>${dateIcon}</span>
+                                ${dateDisplay}
+                            </div>
+                            ${cropInfo}
+                            ${recurringInfo}
+                            ${calendarSection}
+                        </div>
+                        <div class="todo-actions">
+                            ${(todo.completionHistory && todo.completionHistory.length > 0) ? `
+                            <button onclick="viewTaskHistory(${todo.id})" class="btn-blue btn-small" title="View completion history">
+                                <span>📜</span>
+                                History (${todo.completionHistory.length})
+                            </button>
+                            ` : ''}
+                            <button onclick="editTodo(${todo.id})" class="btn-blue btn-small">
+                                <span>✏️</span>
+                                Edit
+                            </button>
+                            <button onclick="removeTodo(${todo.id})" class="btn-danger btn-small">
+                                <span>🗑️</span>
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+                `;
+                }).join('');
+            }
+
+            async function toggleTodo(id) {
+                const todo = todos.find(t => t.id === id);
+                if (todo) {
+                    // Initialize history array if it doesn't exist
+                    if (!todo.completionHistory) {
+                        todo.completionHistory = [];
+                    }
+
+                    // If this is a recurring task being marked complete, advance the date
+                    if (!todo.completed && todo.recurringDates && todo.date) {
+                        const interval = parseInt(todo.recurringDates);
+                        if (!isNaN(interval) && interval > 0) {
+                            const currentDate = new Date(todo.date);
+                            currentDate.setHours(0, 0, 0, 0);
+
+                            // Record completion
+                            todo.completionHistory.push({
+                                id: Date.now(),
+                                completedDate: new Date().toISOString().split('T')[0],
+                                scheduledDate: todo.date,
+                                notes: ''
+                            });
+
+                            // Simply add the interval to move to next occurrence
+                            currentDate.setDate(currentDate.getDate() + interval);
+
+                            // Update the todo's date to the next occurrence
+                            todo.date = currentDate.toISOString().split('T')[0];
+
+                            // Keep as incomplete (ready for next occurrence)
+                            showNotification(`Task completed! Rescheduled to ${formatDate(todo.date)}`, 'success');
+                        } else {
+                            // Non-recurring task, just toggle completion
+                            if (!todo.completed) {
+                                // Marking as complete
+                                todo.completionHistory.push({
+                                    id: Date.now(),
+                                    completedDate: new Date().toISOString().split('T')[0],
+                                    scheduledDate: todo.date || '',
+                                    notes: ''
+                                });
+                            }
+                            todo.completed = !todo.completed;
+                        }
+                    } else {
+                        // Regular toggle for non-recurring or uncompleting
+                        if (!todo.completed) {
+                            // Marking as complete
+                            todo.completionHistory.push({
+                                id: Date.now(),
+                                completedDate: new Date().toISOString().split('T')[0],
+                                scheduledDate: todo.date || '',
+                                notes: ''
+                            });
+                        }
+                        todo.completed = !todo.completed;
+                    }
+
+                    await saveTodo(todo);
+                    renderTodos();
+                    renderCrops(); // Re-render crops to update task counts
+                    updateStats();
+                }
+            }
+
+            async function removeTodo(id) {
+                const todo = todos.find(t => t.id === id);
+                const todoText = todo ? todo.text : 'this task';
+                const historyCount = todo && todo.completionHistory ? todo.completionHistory.length : 0;
+
+                let message = `Delete "${todoText}"?`;
+                if (historyCount > 0) {
+                    message += ` This will also remove ${historyCount} completion record${historyCount > 1 ? 's' : ''}.`;
+                }
+
+                const confirmed = await showConfirm(
+                    message,
+                    'Delete Task',
+                    '🗑️',
+                    'Delete'
+                );
+                if (!confirmed) return;
+
+                if (editingTodoId === id) {
+                    cancelTodoEdit();
+                }
+
+                await deleteTodo(id);
+                todos = todos.filter(todo => todo.id !== id);
+                renderTodos();
+                renderCrops(); // Re-render crops to update task counts
+                updateStats();
+                showNotification('Task removed', 'success');
+            }
+
+            function updateStats() {
+                document.getElementById('totalCrops').textContent = crops.length;
+                document.getElementById('totalTasks').textContent = todos.length;
+                document.getElementById('completedTasks').textContent = todos.filter(t => t.completed).length;
+            }
+
+            function formatDate(dateString) {
+                const options = { month: 'short', day: 'numeric', year: 'numeric' };
+                return new Date(dateString).toLocaleDateString('en-US', options);
+            }
+
+            function showNotification(message, type = 'success') {
+                const notification = document.getElementById('notification');
+                const text = document.getElementById('notificationText');
+
+                let icon = '✅';
+                if (type === 'error') icon = '❌';
+                if (type === 'info') icon = 'ℹ️';
+
+                text.innerHTML = `<span>${icon}</span> ${message}`;
+                notification.className = `notification ${type} show`;
+
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+
+            function exportToPDF(type = 'both') {
+                // Validate data based on export type
+                if (type === 'crops' && crops.length === 0) {
+                    showNotification('No crops to export. Add crops first.', 'error');
+                    return;
+                }
+                if (type === 'tasks' && todos.length === 0) {
+                    showNotification('No tasks to export. Add tasks first.', 'error');
+                    return;
+                }
+                if (type === 'both' && crops.length === 0 && todos.length === 0) {
+                    showNotification('No data to export. Add crops or tasks first.', 'error');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                let yPosition = 20;
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const pageHeight = doc.internal.pageSize.getHeight();
+                const margin = 20;
+                const maxWidth = pageWidth - (margin * 2);
+
+                // Title based on export type
+                doc.setFontSize(20);
+                doc.setFont(undefined, 'bold');
+                let title = 'Farm Harvest Report';
+                if (type === 'crops') title = 'Crops Report';
+                if (type === 'tasks') title = 'Tasks Report';
+                doc.text(title, margin, yPosition);
+
+                yPosition += 10;
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+                doc.text(`Generated on: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, margin, yPosition);
+
+                yPosition += 15;
+
+                // Statistics - show based on type
+                doc.setFontSize(14);
+                doc.setFont(undefined, 'bold');
+                doc.text('Summary', margin, yPosition);
+                yPosition += 8;
+
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'normal');
+
+                if (type === 'crops' || type === 'both') {
+                    doc.text(`Total Crops: ${crops.length}`, margin, yPosition);
+                    yPosition += 6;
+                }
+                if (type === 'tasks' || type === 'both') {
+                    doc.text(`Total Tasks: ${todos.length}`, margin, yPosition);
+                    yPosition += 6;
+                    doc.text(`Completed Tasks: ${todos.filter(t => t.completed).length}`, margin, yPosition);
+                    yPosition += 6;
+                }
+                yPosition += 9;
+
+                // Crops Section
+                if ((type === 'crops' || type === 'both') && crops.length > 0) {
+                    if (yPosition > pageHeight - 40) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+
+                    doc.setFontSize(16);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Saved Crops', margin, yPosition);
+                    yPosition += 10;
+
+                    crops.forEach((crop, index) => {
+                        const today = new Date();
+                        const harvest = new Date(crop.harvest);
+                        const daysUntil = Math.ceil((harvest - today) / (1000 * 60 * 60 * 24));
+
+                        // Check if we need a new page
+                        if (yPosition > pageHeight - 50) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+
+                        doc.setFontSize(12);
+                        doc.setFont(undefined, 'bold');
+                        doc.text(`${index + 1}. ${crop.name}`, margin, yPosition);
+                        yPosition += 6;
+
+                        doc.setFontSize(10);
+                        doc.setFont(undefined, 'normal');
+
+                        if (crop.nurseryStart) {
+                            doc.text(`   Nursery Start: ${formatDate(crop.nurseryStart)}`, margin, yPosition);
+                            yPosition += 5;
+                        }
+
+                        doc.text(`   Planted: ${formatDate(crop.planting)}`, margin, yPosition);
+                        yPosition += 5;
+
+                        doc.text(`   Growth Period after Nursery: ${crop.daysToFirstHarvest} days`, margin, yPosition);
+                        yPosition += 5;
+
+                        doc.text(`   First Harvest: ${formatDate(crop.harvest)}`, margin, yPosition);
+                        yPosition += 10;
+                    });
+                }
+
+                // Tasks Section
+                if ((type === 'tasks' || type === 'both') && todos.length > 0) {
+                    if (yPosition > pageHeight - 40) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+
+                    doc.setFontSize(16);
+                    doc.setFont(undefined, 'bold');
+                    doc.text('Tasks', margin, yPosition);
+                    yPosition += 10;
+
+                    // Sort todos: incomplete first
+                    const sortedTodos = [...todos].sort((a, b) => {
+                        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                        if (!a.date && !b.date) return 0;
+                        if (!a.date) return 1;
+                        if (!b.date) return -1;
+                        return new Date(a.date) - new Date(b.date);
+                    });
+
+                    sortedTodos.forEach((todo, index) => {
+                        // Check if we need a new page
+                        if (yPosition > pageHeight - 30) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+
+                        doc.setFontSize(10);
+
+                        const checkbox = todo.completed ? '[X]' : '[ ]';
+                        doc.setFont(undefined, todo.completed ? 'normal' : 'bold');
+
+                        if (todo.completed) {
+                            doc.setTextColor(117, 117, 117); // Gray for completed
+                        }
+
+                        doc.text(`${checkbox} ${todo.text}`, margin, yPosition);
+                        yPosition += 5;
+
+                        if (todo.date) {
+                            const todoDate = new Date(todo.date);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            todoDate.setHours(0, 0, 0, 0);
+                            const daysUntil = Math.ceil((todoDate - today) / (1000 * 60 * 60 * 24));
+
+                            let dateText = '';
+                            if (daysUntil < 0) {
+                                dateText = `   Due: ${formatDate(todo.date)} (Overdue by ${Math.abs(daysUntil)} days)`;
+                                if (!todo.completed) doc.setTextColor(244, 67, 54); // Red
+                            } else if (daysUntil === 0) {
+                                dateText = `   Due: ${formatDate(todo.date)} (Today!)`;
+                                if (!todo.completed) doc.setTextColor(255, 152, 0); // Orange
+                            } else if (daysUntil <= 7) {
+                                dateText = `   Due: ${formatDate(todo.date)} (In ${daysUntil} days)`;
+                                if (!todo.completed) doc.setTextColor(255, 152, 0); // Orange
+                            } else {
+                                dateText = `   Due: ${formatDate(todo.date)}`;
+                            }
+
+                            doc.setFontSize(9);
+                            doc.text(dateText, margin, yPosition);
+                            doc.setTextColor(0, 0, 0); // Reset to black
+                            yPosition += 6;
+                        } else {
+                            yPosition += 3;
+                        }
+
+                        doc.setTextColor(0, 0, 0); // Reset to black
+                        doc.setFont(undefined, 'normal');
+                    });
+                }
+
+                // Save the PDF with appropriate filename
+                let filename = 'Farm_Report';
+                if (type === 'crops') filename = 'Crops_Report';
+                if (type === 'tasks') filename = 'Tasks_Report';
+                filename += `_${new Date().toISOString().split('T')[0]}.pdf`;
+
+                doc.save(filename);
+
+                showNotification(`${type === 'crops' ? 'Crops' : type === 'tasks' ? 'Tasks' : 'Full'} PDF exported successfully!`, 'success');
+            }
+
+            // Enter key for todo
+            document.getElementById('todoInput').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    addTodo();
+                }
+            });
+
+            // Enter key for todo edit
+            document.getElementById('todoEditInput').addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    updateTodo();
+                }
+            });
+
+            // Calendar Functions
+            function toggleCalendar() {
+                const container = document.getElementById('calendarContainer');
+                const isHidden = container.style.display === 'none';
+                container.style.display = isHidden ? 'block' : 'none';
+
+                if (isHidden) {
+                    renderCalendar();
+                }
+            }
+
+            function renderCalendar() {
+                const calendarDiv = document.getElementById('calendar');
+                const today = new Date();
+                const currentMonth = today.getMonth();
+                const currentYear = today.getFullYear();
+
+                let html = '<div class="calendar">';
+
+                // Show 3 months: current, next, next+1
+                for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+                    const monthDate = new Date(currentYear, currentMonth + monthOffset, 1);
+                    const month = monthDate.getMonth();
+                    const year = monthDate.getFullYear();
+
+                    html += `
+                    <div style="margin-bottom: 30px;">
+                        <div class="calendar-header">
+                            <h3>${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
+                        </div>
+
+                        <div class="calendar-weekdays">
+                            <div class="calendar-weekday">Sun</div>
+                            <div class="calendar-weekday">Mon</div>
+                            <div class="calendar-weekday">Tue</div>
+                            <div class="calendar-weekday">Wed</div>
+                            <div class="calendar-weekday">Thu</div>
+                            <div class="calendar-weekday">Fri</div>
+                            <div class="calendar-weekday">Sat</div>
+                        </div>
+
+                        <div class="calendar-days">
+                `;
+
+                    // Get first day of month
+                    const firstDay = new Date(year, month, 1).getDay();
+
+                    // Previous month days
+                    const prevMonthDays = new Date(year, month, 0).getDate();
+                    for (let i = firstDay - 1; i >= 0; i--) {
+                        html += `<div class="calendar-day other-month">${prevMonthDays - i}</div>`;
+                    }
+
+                    // Current month days
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const cellDate = new Date(year, month, day);
+                        const dateStr = cellDate.toISOString().split('T')[0];
+
+                        // Check if task exists for this date
+                        const hasTask = todos.some(todo => {
+                            if (!todo.date && !todo.recurring) return false;
+
+                            // Direct date match
+                            if (todo.date === dateStr) return true;
+
+                            // Recurring task logic
+                            if (todo.recurring !== 'none' && todo.date) {
+                                const baseDate = new Date(todo.date);
+                                const daysOffset = Math.floor((cellDate - baseDate) / (1000 * 60 * 60 * 24));
+
+                                if (daysOffset < 0) return false; // Before start date
+
+                                switch (todo.recurring) {
+                                    case 'daily':
+                                        return true;
+                                    case 'weekly':
+                                        return daysOffset % 7 === 0;
+                                    case 'biweekly':
+                                        return daysOffset % 14 === 0;
+                                    case 'monthly':
+                                        return baseDate.getDate() === day;
+                                }
+                            }
+                            return false;
+                        });
+
+                        const isToday = cellDate.toDateString() === today.toDateString();
+                        const classes = `calendar-day ${isToday ? 'today' : ''} ${hasTask ? 'has-task' : ''}`;
+
+                        html += `<div class="${classes}" title="${dateStr}">${day}</div>`;
+                    }
+
+                    // Next month days
+                    const totalCells = firstDay + daysInMonth;
+                    const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+                    for (let i = 1; i <= remainingCells; i++) {
+                        html += `<div class="calendar-day other-month">${i}</div>`;
+                    }
+
+                    html += `
+                        </div>
+                    </div>
+                `;
+                }
+
+                html += '</div>';
+                calendarDiv.innerHTML = html;
+            }
+
+            // Individual Todo Calendar Functions
+            function toggleTodoCalendar(todoId) {
+                const container = document.getElementById(`todoCalendar-${todoId}`);
+                const isHidden = !container.classList.contains('show');
+
+                container.classList.toggle('show');
+
+                if (isHidden) {
+                    renderTodoCalendar(todoId);
+                }
+            }
+
+            function renderTodoCalendar(todoId) {
+                const todo = todos.find(t => t.id === todoId);
+                if (!todo) return;
+
+                const calendarDiv = document.getElementById(`miniCalendar-${todoId}`);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                // Parse recurring dates
+                const recurringDates = parseRecurringDates(todo.recurringDates);
+
+                // Debug output
+                console.log('Rendering calendar for todo:', {
+                    id: todoId,
+                    text: todo.text,
+                    date: todo.date,
+                    recurringDates: todo.recurringDates,
+                    parsed: recurringDates
+                });
+
+                // Determine starting month - use base date if available, otherwise current month
+                let startMonth, startYear;
+                if (todo.date) {
+                    const baseDate = new Date(todo.date);
+                    startMonth = baseDate.getMonth();
+                    startYear = baseDate.getFullYear();
+                } else {
+                    startMonth = today.getMonth();
+                    startYear = today.getFullYear();
+                }
+
+                let html = '';
+
+                // Calculate next scheduled dates if recurring
+                let nextDates = [];
+                if (todo.recurringDates && todo.date) {
+                    const interval = parseInt(todo.recurringDates);
+                    const baseDate = new Date(todo.date);
+                    baseDate.setHours(0, 0, 0, 0);
+
+                    // Find next 5 occurrences from today
+                    let currentDate = new Date(baseDate);
+                    while (currentDate < today) {
+                        currentDate.setDate(currentDate.getDate() + interval);
+                    }
+
+                    for (let i = 0; i < 5; i++) {
+                        nextDates.push(new Date(currentDate));
+                        currentDate.setDate(currentDate.getDate() + interval);
+                    }
+                }
+
+                // Show 3 months starting from the base date month
+                for (let monthOffset = 0; monthOffset < 3; monthOffset++) {
+                    const monthDate = new Date(startYear, startMonth + monthOffset, 1);
+                    const month = monthDate.getMonth();
+                    const year = monthDate.getFullYear();
+
+                    html += `
+                    <div class="mini-calendar-month">
+                        <div class="mini-calendar-header">
+                            ${monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                        </div>
+
+                        <div class="mini-calendar-weekdays">
+                            <div class="mini-calendar-weekday">Sun</div>
+                            <div class="mini-calendar-weekday">Mon</div>
+                            <div class="mini-calendar-weekday">Tue</div>
+                            <div class="mini-calendar-weekday">Wed</div>
+                            <div class="mini-calendar-weekday">Thu</div>
+                            <div class="mini-calendar-weekday">Fri</div>
+                            <div class="mini-calendar-weekday">Sat</div>
+                        </div>
+
+                        <div class="mini-calendar-days">
+                `;
+
+                    // Get first day of month
+                    const firstDay = new Date(year, month, 1).getDay();
+
+                    // Previous month days
+                    const prevMonthDays = new Date(year, month, 0).getDate();
+                    for (let i = firstDay - 1; i >= 0; i--) {
+                        html += `<div class="mini-calendar-day other-month">${prevMonthDays - i}</div>`;
+                    }
+
+                    // Current month days
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const cellDate = new Date(year, month, day);
+                        const dateStr = cellDate.toISOString().split('T')[0];
+
+                        const isToday = cellDate.toDateString() === today.toDateString();
+                        const isBaseDate = todo.date === dateStr;
+                        const isRecurringDate = checkRecurringDate(cellDate, recurringDates, todo.date);
+
+                        let classes = 'mini-calendar-day';
+                        if (isToday) classes += ' today';
+                        if (isBaseDate) classes += ' base-date';
+                        else if (isRecurringDate) classes += ' recurring-task';
+
+                        // Debug title
+                        let titleText = dateStr;
+                        if (isRecurringDate) titleText += ' - Recurring task';
+                        if (isBaseDate) titleText += ' - Base date';
+
+                        html += `<div class="${classes}" title="${titleText}">${day}</div>`;
+                    }
+
+                    // Next month days
+                    const totalCells = firstDay + daysInMonth;
+                    const remainingCells = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+                    for (let i = 1; i <= remainingCells; i++) {
+                        html += `<div class="mini-calendar-day other-month">${i}</div>`;
+                    }
+
+                    html += `
+                        </div>
+                    </div>
+                `;
+                }
+
+                // Add legend and recurring info with next scheduled dates
+                html += `
+                <div class="recurring-info">
+                    <strong>Legend:</strong><br>
+                    <span style="background: var(--primary); color: white; padding: 2px 8px; border-radius: 3px; margin-right: 10px;">■</span> Base Date<br>
+                    <span style="background: var(--orange); color: white; padding: 2px 8px; border-radius: 3px; margin-right: 10px;">■</span> Recurring Task<br>
+                    <span style="background: var(--blue); color: white; padding: 2px 8px; border-radius: 3px; margin-right: 10px;">■</span> Today
+            `;
+
+                if (todo.recurringDates && todo.date) {
+                    const interval = parseInt(todo.recurringDates);
+                    html += `<br><br><strong>Recurring Pattern:</strong> Every ${interval} day${interval !== 1 ? 's' : ''} from ${formatDate(todo.date)}`;
+
+                    if (nextDates.length > 0) {
+                        html += `<br><br><strong>Next Scheduled Dates:</strong><br>`;
+                        nextDates.forEach((date, index) => {
+                            const dateStr = formatDate(date.toISOString().split('T')[0]);
+                            const daysFromNow = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+                            let daysText = '';
+                            if (daysFromNow === 0) {
+                                daysText = ' (Today)';
+                            } else if (daysFromNow === 1) {
+                                daysText = ' (Tomorrow)';
+                            } else if (daysFromNow > 0) {
+                                daysText = ` (in ${daysFromNow} days)`;
+                            }
+                            html += `<span style="color: var(--orange);">📅 ${dateStr}${daysText}</span><br>`;
+                        });
+                    }
+                }
+
+                html += `</div>`;
+
+                calendarDiv.innerHTML = html;
+            }
+
+            function parseRecurringDates(recurringDatesStr) {
+                if (!recurringDatesStr) return { type: 'none', interval: 0 };
+
+                const interval = parseInt(recurringDatesStr);
+
+                if (!isNaN(interval) && interval > 0) {
+                    return { type: 'interval', interval: interval };
+                }
+
+                return { type: 'none', interval: 0 };
+            }
+
+            function checkRecurringDate(date, recurringDates, baseDate) {
+                if (!recurringDates || recurringDates.type === 'none' || !baseDate) return false;
+
+                if (recurringDates.type === 'interval') {
+                    const base = new Date(baseDate);
+                    base.setHours(0, 0, 0, 0);
+                    const checkDate = new Date(date);
+                    checkDate.setHours(0, 0, 0, 0);
+
+                    // Calculate days difference
+                    const diffTime = checkDate - base;
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                    // Check if this date falls on the interval
+                    if (diffDays >= 0 && diffDays % recurringDates.interval === 0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        </script>
+    </body>
+
+</html>
